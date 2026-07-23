@@ -17,7 +17,8 @@ from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
-from langchain.tools import tool
+# Nayi LangChain version ke liye import update kiya gaya hai
+from langchain_core.tools import tool
 from typing import Any
 
 from langchain_community.cross_encoders import HuggingFaceCrossEncoder
@@ -42,7 +43,6 @@ os.makedirs(DOCS_FOLDER, exist_ok=True)
 def init_logging_db():
     conn = sqlite3.connect(LOG_DB_PATH)
     cursor = conn.cursor()
-    # 'session_id' PRIMARY KEY hai, is liye hum ek hi session ko bar bar update kar sakte hain
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS chat_summaries (
             session_id INTEGER PRIMARY KEY,
@@ -73,10 +73,8 @@ def auto_update_summary(session_id, user_queries_list):
         cursor = conn.cursor()
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
-        # User ne jo bhi sawal pooche hain unko ek text mein mila kar save kar dega
         summary_text = " | ".join(user_queries_list)
         
-        # INSERT OR REPLACE ka faida ye hai ke purani entry update ho jati hai
         cursor.execute('''
             INSERT OR REPLACE INTO chat_summaries (session_id, timestamp, summary) 
             VALUES (?, ?, ?)
@@ -121,8 +119,10 @@ SCHEMA_TEXT = "\n".join(
 )
 
 # --- TOOLS ---
-@tool("search_item_fuzzy")
+# Tool decorator se brackets hata diye gaye hain taake ValueError na aaye
+@tool
 def search_item_fuzzy(table_name: str, search_query: str) -> str:
+    """Kisi bike, part, ya accessory ki detail ke liye (Fuzzy Match)."""
     conn = sqlite3.connect(DB_PATH)
     try:
         cursor = conn.execute(f"SELECT * FROM {table_name}")
@@ -148,8 +148,9 @@ def search_item_fuzzy(table_name: str, search_query: str) -> str:
         lines.append(" | ".join(str(v) for v in row))
     return "\n".join(lines)
 
-@tool("run_sql_query")
+@tool
 def run_sql_query(query: str) -> str:
+    """Complex analysis (COUNT, SUM) nikalne ke liye."""
     query_clean = query.strip()
     if not query_clean.lower().startswith("select"):
         return "Sirf SELECT queries allowed hain."
@@ -172,49 +173,9 @@ def run_sql_query(query: str) -> str:
         lines.append(" | ".join(str(v) for v in row))
     return "\n".join(lines)
 
-# ==================================================================
-# 4. PDF / WORD -> Vectorstore
-# ==================================================================
-def extract_pdf_text(path: str) -> str:
-    reader = PdfReader(path)
-    return "\n".join(page.extract_text() or "" for page in reader.pages)
-
-def extract_docx_text(path: str) -> str:
-    doc = DocxDocument(path)
-    return "\n".join(para.text for para in doc.paragraphs)
-
-def load_documents() -> list[Document]:
-    docs = []
-    for file in os.listdir(DOCS_FOLDER):
-        path = os.path.join(DOCS_FOLDER, file)
-        if file.endswith(".pdf"):
-            text = extract_pdf_text(path)
-        elif file.endswith(".docx") and not file.startswith("~$"):
-            text = extract_docx_text(path)
-        else:
-            continue  
-        if text.strip():
-            docs.append(Document(page_content=text, metadata={"source": file}))
-    return docs
-
-@st.cache_resource
-def get_doc_vectorstore():
-    has_files = any(f.endswith((".pdf", ".docx")) for f in os.listdir(DOCS_FOLDER))
-    if not has_files:
-        return None
-    if os.path.exists(PERSIST_FOLDER):
-        return Chroma(persist_directory=PERSIST_FOLDER, embedding_function=embeddings)
-    
-    raw_docs = load_documents()
-    splitter = RecursiveCharacterTextSplitter(chunk_size=400, chunk_overlap=50)
-    split_docs = splitter.split_documents(raw_docs)
-    store = Chroma.from_documents(documents=split_docs, embedding=embeddings, persist_directory=PERSIST_FOLDER)
-    return store
-
-doc_vectorstore = get_doc_vectorstore()
-
-@tool("search_documents")
+@tool
 def search_documents(query: str) -> str:
+    """PDF ya Word files mein se jawab dhoondne ke liye."""
     if doc_vectorstore is None:
         return "Abhi koi PDF/Word file 'documents' folder mein maujood nahi hai."
 
@@ -288,7 +249,6 @@ if is_admin:
     st.success("Admin Logged In! Dashboard and Logs Unlocked.")
     tab_chat, tab_db, tab_logs = st.tabs(["💬 Chat", "📊 Database", "📝 Customer Logs"])
 else:
-    # Aam user ke liye koi tabs nahi banenge, sirf ek sada container hoga
     tab_chat = st.container()
 
 # --- TAB 1: Chat Interface (Sab ke liye visible) ---
