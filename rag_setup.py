@@ -5,7 +5,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 from pypdf import PdfReader
 from docx import Document as DocxDocument
-import streamlit as st  # <--- NAYI LIBRARY ADD KI HAI
+import streamlit as st
 
 # Telemetry disable karne ke liye
 os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
@@ -229,7 +229,7 @@ tools = [search_item_fuzzy, run_sql_query, search_documents]
 # ==================================================================
 # 5. PROMPT + AGENT
 # ==================================================================
-system_prompt = f"""Tum Shamas Honda, Sialkot ke senior sales dealer ho. Naam: Usman.
+system_prompt = f"""Tum Shamas Honda, Sialkot ke senior sales dealer ho. Naam: Salman.
 
 Database mein yeh tables maujood hain:
 {SCHEMA_TEXT}
@@ -288,71 +288,79 @@ with st.sidebar:
 
 st.title("🏍️ Shamas Honda - AI Agent & Dashboard")
 
-# Interface Tabs
-tab1, tab2 = st.tabs(["💬 Chat with salman", "📊 Database (Excel View)"])
+# --- PUBLIC CHAT INTERFACE ---
+st.subheader("💬 Chat with Salman")
 
-# --- TAB 1: Chat ---
-with tab1:
-    # Pichli chat dikhana
-    for msg in st.session_state.display_msgs:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
+# Pichli chat dikhana
+for msg in st.session_state.display_msgs:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
 
-    # User ka naya input
-    if question := st.chat_input("Poochiye Honda CD 70 ki details..."):
-        # UI par dikhana
-        st.chat_message("user").markdown(question)
-        
-        # History update karna
-        st.session_state.display_msgs.append({"role": "user", "content": question})
-        st.session_state.chat_history.append(HumanMessage(content=question))
-        st.session_state.user_queries.append(question)
-
-        # Agent Limits Check
-        if len(st.session_state.chat_history) > 10:
-            st.session_state.chat_history = [st.session_state.chat_history[0]] + st.session_state.chat_history[-8:]
-
-        # Agent Process Karega
-        with st.spinner("salman check kar raha hai..."):
-            result = agent.invoke({"messages": st.session_state.chat_history})
-            final_message = result["messages"][-1].content
-            
-            st.chat_message("assistant").markdown(final_message)
-            
-            st.session_state.display_msgs.append({"role": "assistant", "content": final_message})
-            st.session_state.chat_history = list(result["messages"])
-
-# --- TAB 2: Database View ---
-with tab2:
-    st.subheader("📦 Showroom Database")
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-    tables = [row[0] for row in cursor.fetchall()]
+# User ka naya input
+if question := st.chat_input("Poochiye Honda CD 70 ki details..."):
+    # UI par dikhana
+    st.chat_message("user").markdown(question)
     
-    if tables:
-        selected_table = st.selectbox("Apni Table Select Karein:", tables)
-        df = pd.read_sql_query(f"SELECT * FROM {selected_table}", conn)
-        # Yeh 'dataframe' component data ko Excel ki tarah dikhata hai
-        st.dataframe(df, use_container_width=True, hide_index=True)
-    else:
-        st.info("Abhi tak koi Excel data table maujood nahi hai.")
+    # History update karna
+    st.session_state.display_msgs.append({"role": "user", "content": question})
+    st.session_state.chat_history.append(HumanMessage(content=question))
+    st.session_state.user_queries.append(question)
+
+    # Agent Limits Check
+    if len(st.session_state.chat_history) > 10:
+        st.session_state.chat_history = [st.session_state.chat_history[0]] + st.session_state.chat_history[-8:]
+
+    # Agent Process Karega
+    with st.spinner("Salman check kar raha hai..."):
+        result = agent.invoke({"messages": st.session_state.chat_history})
+        final_message = result["messages"][-1].content
         
-        st.divider()
-    st.subheader("📝 Chat Logs & Summaries")
+        st.chat_message("assistant").markdown(final_message)
+        
+        st.session_state.display_msgs.append({"role": "assistant", "content": final_message})
+        st.session_state.chat_history = list(result["messages"])
+
+st.divider()
+
+# --- ADMIN PANEL (HIDDEN BEHIND EXPANDER & PASSWORD) ---
+with st.expander("🔒 Admin Panel (Sirf Admin Ke Liye)"):
+    # Streamlit Cloud par ADMIN_PASSWORD set hona zaroori hai
+    # agar abhi set nahi kiya toh .get() app ko crash hone se bachayega
+    admin_password = st.secrets.get("ADMIN_PASSWORD", "")
     
-    # 1. Open a NEW connection specifically to the log database
-    log_conn = sqlite3.connect(LOG_DB_PATH)
-    try:
-        # 2. Read the summaries from the correct database
-        chat_df = pd.read_sql_query("SELECT * FROM chat_summaries", log_conn)
-        st.dataframe(chat_df, use_container_width=True, hide_index=True)
-    except Exception as e:
-        # Just in case the table hasn't been created yet (first run)
-        st.info("Abhi tak koi chat summary save nahi hui.")
-    finally:
-        # 3. Close the log database connection
-        log_conn.close()
+    user_pass = st.text_input("Admin Password enter karein:", type="password")
+    
+    if user_pass == admin_password and admin_password != "":
+        st.success("Welcome! Access Granted.")
         
-    # Close the main showroom database connection from earlier in Tab 2
-    conn.close()
+        # Sahi password par andar wale 2 tabs show honge
+        admin_tab1, admin_tab2 = st.tabs(["📊 Database (Excel View)", "📝 Chat Logs & Summaries"])
+        
+        with admin_tab1:
+            st.subheader("📦 Showroom Database")
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+            tables = [row[0] for row in cursor.fetchall()]
+            
+            if tables:
+                selected_table = st.selectbox("Apni Table Select Karein:", tables)
+                df = pd.read_sql_query(f"SELECT * FROM {selected_table}", conn)
+                st.dataframe(df, use_container_width=True, hide_index=True)
+            else:
+                st.info("Abhi tak koi Excel data table maujood nahi hai.")
+            conn.close()
+            
+        with admin_tab2:
+            st.subheader("📝 Chat Logs & Summaries")
+            log_conn = sqlite3.connect(LOG_DB_PATH)
+            try:
+                chat_df = pd.read_sql_query("SELECT * FROM chat_summaries", log_conn)
+                st.dataframe(chat_df, use_container_width=True, hide_index=True)
+            except Exception as e:
+                st.info("Abhi tak koi chat summary save nahi hui.")
+            finally:
+                log_conn.close()
+                
+    elif user_pass != "":
+        st.error("Ghalat password!")
