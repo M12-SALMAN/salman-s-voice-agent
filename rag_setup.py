@@ -28,20 +28,21 @@ load_dotenv()
 # ==================================================================
 st.set_page_config(page_title="Shamas Honda - Agent Dashboard", layout="wide", page_icon="🏍️")
 
-DATA_FOLDER = "./data"          # Excel files yahan
-DOCS_FOLDER = "./documents"      # PDF/Word files yahan
+DATA_FOLDER = "./data"          
+DOCS_FOLDER = "./documents"      
 DB_PATH = "./shamas_honda.db"
 PERSIST_FOLDER = "./vectorstore"
-LOG_DB_PATH = "./chat_logs.db"   # Logs save karne ke liye database
+LOG_DB_PATH = "./chat_logs.db"   
 
-os.makedirs(DOCS_FOLDER, exist_ok=True)  # agar folder na ho to bana do
+os.makedirs(DOCS_FOLDER, exist_ok=True)  
 
 # ==================================================================
-# LOGGING DATABASE SETUP
+# LOGGING DATABASE SETUP (Auto-Save Logic)
 # ==================================================================
 def init_logging_db():
     conn = sqlite3.connect(LOG_DB_PATH)
     cursor = conn.cursor()
+    # 'session_id' PRIMARY KEY hai, is liye hum ek hi session ko bar bar update kar sakte hain
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS chat_summaries (
             session_id INTEGER PRIMARY KEY,
@@ -62,22 +63,31 @@ def get_new_session_id() -> int:
         return 1
     return result + 1
 
-def save_summary_to_db(session_id, summary_text):
+def auto_update_summary(session_id, user_queries_list):
+    """Yeh function har message ke baad khud ba khud database update karega"""
+    if not user_queries_list:
+        return
+        
     try:
         conn = sqlite3.connect(LOG_DB_PATH)
         cursor = conn.cursor()
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # User ne jo bhi sawal pooche hain unko ek text mein mila kar save kar dega
+        summary_text = " | ".join(user_queries_list)
+        
+        # INSERT OR REPLACE ka faida ye hai ke purani entry update ho jati hai
         cursor.execute('''
-            INSERT INTO chat_summaries (session_id, timestamp, summary) 
+            INSERT OR REPLACE INTO chat_summaries (session_id, timestamp, summary) 
             VALUES (?, ?, ?)
         ''', (session_id, timestamp, summary_text))
         conn.commit()
         conn.close()
     except Exception as e:
-        print(f"[Log Error] Summary database mein save nahi ho saki: {e}")
+        print(f"[Log Error] Summary auto-update nahi ho saki: {e}")
 
 # ----------------------------------------------------------------
-# CACHE MODELS (Taake Streamlit har click pe models dobara load na kare)
+# CACHE MODELS 
 # ----------------------------------------------------------------
 @st.cache_resource
 def load_models():
@@ -113,7 +123,6 @@ SCHEMA_TEXT = "\n".join(
 # --- TOOLS ---
 @tool("search_item_fuzzy")
 def search_item_fuzzy(table_name: str, search_query: str) -> str:
-    """Kisi bike, part, ya accessory ki detail ke liye (Fuzzy Match)."""
     conn = sqlite3.connect(DB_PATH)
     try:
         cursor = conn.execute(f"SELECT * FROM {table_name}")
@@ -126,7 +135,6 @@ def search_item_fuzzy(table_name: str, search_query: str) -> str:
         
     search_words = search_query.lower().replace("-", " ").split()
     results = []
-    
     for row in rows:
         row_text = " ".join(str(v).lower() for v in row)
         if all(word in row_text for word in search_words):
@@ -142,7 +150,6 @@ def search_item_fuzzy(table_name: str, search_query: str) -> str:
 
 @tool("run_sql_query")
 def run_sql_query(query: str) -> str:
-    """Complex analysis (COUNT, SUM) nikalne ke liye."""
     query_clean = query.strip()
     if not query_clean.lower().startswith("select"):
         return "Sirf SELECT queries allowed hain."
@@ -208,7 +215,6 @@ doc_vectorstore = get_doc_vectorstore()
 
 @tool("search_documents")
 def search_documents(query: str) -> str:
-    """PDF ya Word files mein se jawab dhoondne ke liye."""
     if doc_vectorstore is None:
         return "Abhi koi PDF/Word file 'documents' folder mein maujood nahi hai."
 
@@ -252,7 +258,7 @@ def get_agent():
 agent = get_agent()
 
 # ==================================================================
-# 6. STREAMLIT WEB UI
+# 6. STREAMLIT WEB UI & ADMIN LOGIC
 # ==================================================================
 init_logging_db()
 
@@ -266,101 +272,79 @@ if "display_msgs" not in st.session_state:
 if "user_queries" not in st.session_state:
     st.session_state.user_queries = []
 
-# Sidebar (Summary Save karne ke liye)
+# --- SECURE ADMIN SIDEBAR ---
 with st.sidebar:
-    st.title("⚙️ Controls")
-    st.write(f"**Session ID:** {st.session_state.session_id}")
-    if st.button("🔴 End Session & Save Summary"):
-        if st.session_state.user_queries:
-            with st.spinner("Summary save ho rahi hai..."):
-                summary_prompt = f"User ne is session mein yeh sawal pooche hain: {st.session_state.user_queries}. Inki ek choti si summary (1-2 sentences) Roman Urdu mein banao ke user kya dhoond raha tha."
-                summary_response = llm.invoke(summary_prompt)
-                save_summary_to_db(st.session_state.session_id, summary_response.content)
-            st.success("Summary Save Ho Gayi!")
-            # Reset Session
-            st.session_state.session_id = get_new_session_id()
-            st.session_state.chat_history = [SystemMessage(content=system_prompt)]
-            st.session_state.display_msgs = []
-            st.session_state.user_queries = []
-            st.rerun()
-        else:
-            st.warning("Koi chat nahi hui save karne ke liye.")
-
-st.title("🏍️ Shamas Honda - AI Agent & Dashboard")
-
-# --- PUBLIC CHAT INTERFACE ---
-st.subheader("💬 Chat with Salman")
-
-# Pichli chat dikhana
-for msg in st.session_state.display_msgs:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
-
-# User ka naya input
-if question := st.chat_input("Poochiye Honda CD 70 ki details..."):
-    # UI par dikhana
-    st.chat_message("user").markdown(question)
-    
-    # History update karna
-    st.session_state.display_msgs.append({"role": "user", "content": question})
-    st.session_state.chat_history.append(HumanMessage(content=question))
-    st.session_state.user_queries.append(question)
-
-    # Agent Limits Check
-    if len(st.session_state.chat_history) > 10:
-        st.session_state.chat_history = [st.session_state.chat_history[0]] + st.session_state.chat_history[-8:]
-
-    # Agent Process Karega
-    with st.spinner("Salman check kar raha hai..."):
-        result = agent.invoke({"messages": st.session_state.chat_history})
-        final_message = result["messages"][-1].content
-        
-        st.chat_message("assistant").markdown(final_message)
-        
-        st.session_state.display_msgs.append({"role": "assistant", "content": final_message})
-        st.session_state.chat_history = list(result["messages"])
-
-st.divider()
-
-# --- ADMIN PANEL (HIDDEN BEHIND EXPANDER & PASSWORD) ---
-with st.expander("🔒 Admin Panel (Sirf Admin Ke Liye)"):
-    # Streamlit Cloud par ADMIN_PASSWORD set hona zaroori hai
-    # agar abhi set nahi kiya toh .get() app ko crash hone se bachayega
+    st.title("🔒 System Access")
     admin_password = st.secrets.get("ADMIN_PASSWORD", "")
-    
-    user_pass = st.text_input("Admin Password enter karein:", type="password")
-    
-    if user_pass == admin_password and admin_password != "":
-        st.success("Welcome! Access Granted.")
+    user_pass = st.text_input("Enter Password", type="password")
+
+# Check if admin is logged in
+is_admin = (user_pass == admin_password and admin_password != "")
+
+st.title("🏍️ Shamas Honda - AI Agent")
+
+# Agar Admin logged in hai, toh Tabs dikhayein. Warna sirf Chat container banayein.
+if is_admin:
+    st.success("Admin Logged In! Dashboard and Logs Unlocked.")
+    tab_chat, tab_db, tab_logs = st.tabs(["💬 Chat", "📊 Database", "📝 Customer Logs"])
+else:
+    # Aam user ke liye koi tabs nahi banenge, sirf ek sada container hoga
+    tab_chat = st.container()
+
+# --- TAB 1: Chat Interface (Sab ke liye visible) ---
+with tab_chat:
+    st.subheader("💬 Chat with Salman")
+
+    for msg in st.session_state.display_msgs:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
+
+    if question := st.chat_input("Poochiye Honda CD 70 ki details..."):
+        st.chat_message("user").markdown(question)
         
-        # Sahi password par andar wale 2 tabs show honge
-        admin_tab1, admin_tab2 = st.tabs(["📊 Database (Excel View)", "📝 Chat Logs & Summaries"])
+        st.session_state.display_msgs.append({"role": "user", "content": question})
+        st.session_state.chat_history.append(HumanMessage(content=question))
+        st.session_state.user_queries.append(question)
+
+        if len(st.session_state.chat_history) > 10:
+            st.session_state.chat_history = [st.session_state.chat_history[0]] + st.session_state.chat_history[-8:]
+
+        with st.spinner("Salman check kar raha hai..."):
+            result = agent.invoke({"messages": st.session_state.chat_history})
+            final_message = result["messages"][-1].content
+            
+            st.chat_message("assistant").markdown(final_message)
+            st.session_state.display_msgs.append({"role": "assistant", "content": final_message})
+            st.session_state.chat_history = list(result["messages"])
+            
+            # --- AUTO SAVE MAGIC (Bina kisi button ke) ---
+            auto_update_summary(st.session_state.session_id, st.session_state.user_queries)
+
+# --- TAB 2 & 3: Admin Tabs (Sirf admin ke liye visible) ---
+if is_admin:
+    with tab_db:
+        st.subheader("📦 Showroom Database")
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        tables = [row[0] for row in cursor.fetchall()]
         
-        with admin_tab1:
-            st.subheader("📦 Showroom Database")
-            conn = sqlite3.connect(DB_PATH)
-            cursor = conn.cursor()
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-            tables = [row[0] for row in cursor.fetchall()]
-            
-            if tables:
-                selected_table = st.selectbox("Apni Table Select Karein:", tables)
-                df = pd.read_sql_query(f"SELECT * FROM {selected_table}", conn)
-                st.dataframe(df, use_container_width=True, hide_index=True)
-            else:
-                st.info("Abhi tak koi Excel data table maujood nahi hai.")
-            conn.close()
-            
-        with admin_tab2:
-            st.subheader("📝 Chat Logs & Summaries")
-            log_conn = sqlite3.connect(LOG_DB_PATH)
-            try:
-                chat_df = pd.read_sql_query("SELECT * FROM chat_summaries", log_conn)
-                st.dataframe(chat_df, use_container_width=True, hide_index=True)
-            except Exception as e:
-                st.info("Abhi tak koi chat summary save nahi hui.")
-            finally:
-                log_conn.close()
-                
-    elif user_pass != "":
-        st.error("Ghalat password!")
+        if tables:
+            selected_table = st.selectbox("Apni Table Select Karein:", tables)
+            df = pd.read_sql_query(f"SELECT * FROM {selected_table}", conn)
+            st.dataframe(df, use_container_width=True, hide_index=True)
+        else:
+            st.info("Abhi tak koi Excel data table maujood nahi hai.")
+        conn.close()
+        
+    with tab_logs:
+        st.subheader("📝 Live Customer Logs")
+        st.caption("Yeh logs har message ke baad khud update hote hain.")
+        log_conn = sqlite3.connect(LOG_DB_PATH)
+        try:
+            chat_df = pd.read_sql_query("SELECT session_id, timestamp, summary as user_questions FROM chat_summaries ORDER BY session_id DESC", log_conn)
+            st.dataframe(chat_df, use_container_width=True, hide_index=True)
+        except Exception as e:
+            st.info("Abhi tak koi chat history nahi hai.")
+        finally:
+            log_conn.close()
