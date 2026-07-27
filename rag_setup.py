@@ -7,9 +7,10 @@ from pypdf import PdfReader
 from docx import Document as DocxDocument
 import streamlit as st
 
-# --- Voice Libraries ---
+# --- Voice & Mic Libraries ---
 from gtts import gTTS
 import io
+from streamlit_mic_recorder import speech_to_text  # <-- Naya Mic Import
 
 # Telemetry disable karne ke liye
 os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
@@ -32,13 +33,13 @@ load_dotenv()
 # ==================================================================
 st.set_page_config(page_title="Shamas Honda - Agent Dashboard", layout="wide", page_icon="🏍️")
 
-DATA_FOLDER = "./data"          
-DOCS_FOLDER = "./documents"      
+DATA_FOLDER = "./data"
+DOCS_FOLDER = "./documents"
 DB_PATH = "./shamas_honda.db"
 PERSIST_FOLDER = "./vectorstore"
-LOG_DB_PATH = "./chat_logs.db"   
+LOG_DB_PATH = "./chat_logs.db"
 
-os.makedirs(DOCS_FOLDER, exist_ok=True)  
+os.makedirs(DOCS_FOLDER, exist_ok=True)
 
 # ==================================================================
 # VOICE GENERATION FUNCTION
@@ -46,7 +47,7 @@ os.makedirs(DOCS_FOLDER, exist_ok=True)
 def play_voice(text):
     try:
         # Roman Urdu/Hindi accent ke liye 'hi' select kiya gaya hai
-        tts = gTTS(text=text, lang='hi') 
+        tts = gTTS(text=text, lang='hi')
         audio_bytes = io.BytesIO()
         tts.write_to_fp(audio_bytes)
         return audio_bytes.getvalue()
@@ -188,7 +189,8 @@ def run_sql_query(query: str) -> str:
 @tool
 def search_documents(query: str) -> str:
     """PDF ya Word files mein se jawab dhoondne ke liye."""
-    if doc_vectorstore is None:
+    # Yahan doc_vectorstore ko ensure karein ke global namespace mein available ho
+    if 'doc_vectorstore' not in globals() or doc_vectorstore is None:
         return "Abhi koi PDF/Word file 'documents' folder mein maujood nahi hai."
 
     base_retriever = doc_vectorstore.as_retriever(search_kwargs={"k": 10})
@@ -268,7 +270,21 @@ with tab_chat:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    if question := st.chat_input("Poochiye Honda CD 70 ki details..."):
+    # --- 🎙️ Naya Mic Button Hissa ---
+    spoken_text = speech_to_text(
+        language='ur-PK', 
+        start_prompt="🎙️ Bol kar poochein",
+        stop_prompt="🛑 Recording rokne ke liye click karein",
+        just_once=True,
+        key='STT'
+    )
+
+    written_text = st.chat_input("Poochiye Honda CD 70 ki details...")
+    
+    # Dono mein se jo bhi input aye (Voice ya Text)
+    question = written_text or spoken_text
+
+    if question:
         st.chat_message("user").markdown(question)
         
         st.session_state.display_msgs.append({"role": "user", "content": question})
@@ -285,7 +301,7 @@ with tab_chat:
             # 1. Text message UI mein show karein
             st.chat_message("assistant").markdown(final_message)
             
-            # 2. Voice generate aur play karein (Naya add kiya gaya hissa)
+            # 2. Voice generate aur play karein
             audio_data = play_voice(final_message)
             if audio_data:
                 st.audio(audio_data, format="audio/mp3", autoplay=True)
