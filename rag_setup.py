@@ -10,7 +10,7 @@ import streamlit as st
 # --- Voice & Mic Libraries ---
 from gtts import gTTS
 import io
-from streamlit_mic_recorder import speech_to_text  # <-- Naya Mic Import
+from streamlit_mic_recorder import speech_to_text
 
 # Telemetry disable karne ke liye
 os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
@@ -189,7 +189,6 @@ def run_sql_query(query: str) -> str:
 @tool
 def search_documents(query: str) -> str:
     """PDF ya Word files mein se jawab dhoondne ke liye."""
-    # Yahan doc_vectorstore ko ensure karein ke global namespace mein available ho
     if 'doc_vectorstore' not in globals() or doc_vectorstore is None:
         return "Abhi koi PDF/Word file 'documents' folder mein maujood nahi hai."
 
@@ -270,11 +269,11 @@ with tab_chat:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    # --- 🎙️ Naya Mic Button Hissa ---
+    # --- 🎙️ Naya Mic Button Hissa (Updated Text) ---
     spoken_text = speech_to_text(
         language='ur-PK', 
         start_prompt="🎙️ Bol kar poochein",
-        stop_prompt="🛑 Recording rokne ke liye click karein",
+        stop_prompt="🔴 Sun raha hai...",
         just_once=True,
         key='STT'
     )
