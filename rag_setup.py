@@ -7,6 +7,10 @@ from pypdf import PdfReader
 from docx import Document as DocxDocument
 import streamlit as st
 
+# --- Voice Libraries ---
+from gtts import gTTS
+import io
+
 # Telemetry disable karne ke liye
 os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
 
@@ -17,7 +21,6 @@ from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
-# Nayi LangChain version ke liye import update kiya gaya hai
 from langchain_core.tools import tool
 from typing import Any
 
@@ -36,6 +39,20 @@ PERSIST_FOLDER = "./vectorstore"
 LOG_DB_PATH = "./chat_logs.db"   
 
 os.makedirs(DOCS_FOLDER, exist_ok=True)  
+
+# ==================================================================
+# VOICE GENERATION FUNCTION
+# ==================================================================
+def play_voice(text):
+    try:
+        # Roman Urdu/Hindi accent ke liye 'hi' select kiya gaya hai
+        tts = gTTS(text=text, lang='hi') 
+        audio_bytes = io.BytesIO()
+        tts.write_to_fp(audio_bytes)
+        return audio_bytes.getvalue()
+    except Exception as e:
+        print(f"Voice generation error: {e}")
+        return None
 
 # ==================================================================
 # LOGGING DATABASE SETUP (Auto-Save Logic)
@@ -64,17 +81,13 @@ def get_new_session_id() -> int:
     return result + 1
 
 def auto_update_summary(session_id, user_queries_list):
-    """Yeh function har message ke baad khud ba khud database update karega"""
     if not user_queries_list:
         return
-        
     try:
         conn = sqlite3.connect(LOG_DB_PATH)
         cursor = conn.cursor()
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
         summary_text = " | ".join(user_queries_list)
-        
         cursor.execute('''
             INSERT OR REPLACE INTO chat_summaries (session_id, timestamp, summary) 
             VALUES (?, ?, ?)
@@ -119,7 +132,6 @@ SCHEMA_TEXT = "\n".join(
 )
 
 # --- TOOLS ---
-# Tool decorator se brackets hata diye gaye hain taake ValueError na aaye
 @tool
 def search_item_fuzzy(table_name: str, search_query: str) -> str:
     """Kisi bike, part, ya accessory ki detail ke liye (Fuzzy Match)."""
@@ -223,7 +235,6 @@ agent = get_agent()
 # ==================================================================
 init_logging_db()
 
-# Session State Initialize Karna
 if "session_id" not in st.session_state:
     st.session_state.session_id = get_new_session_id()
 if "chat_history" not in st.session_state:
@@ -239,19 +250,17 @@ with st.sidebar:
     admin_password = st.secrets.get("ADMIN_PASSWORD", "")
     user_pass = st.text_input("Enter Password", type="password")
 
-# Check if admin is logged in
 is_admin = (user_pass == admin_password and admin_password != "")
 
 st.title("🏍️ Shamas Honda - AI Agent")
 
-# Agar Admin logged in hai, toh Tabs dikhayein. Warna sirf Chat container banayein.
 if is_admin:
     st.success("Admin Logged In! Dashboard and Logs Unlocked.")
     tab_chat, tab_db, tab_logs = st.tabs(["💬 Chat", "📊 Database", "📝 Customer Logs"])
 else:
     tab_chat = st.container()
 
-# --- TAB 1: Chat Interface (Sab ke liye visible) ---
+# --- TAB 1: Chat Interface ---
 with tab_chat:
     st.subheader("💬 Chat with Salman")
 
@@ -273,14 +282,21 @@ with tab_chat:
             result = agent.invoke({"messages": st.session_state.chat_history})
             final_message = result["messages"][-1].content
             
+            # 1. Text message UI mein show karein
             st.chat_message("assistant").markdown(final_message)
+            
+            # 2. Voice generate aur play karein (Naya add kiya gaya hissa)
+            audio_data = play_voice(final_message)
+            if audio_data:
+                st.audio(audio_data, format="audio/mp3", autoplay=True)
+            
+            # 3. History update karein
             st.session_state.display_msgs.append({"role": "assistant", "content": final_message})
             st.session_state.chat_history = list(result["messages"])
             
-            # --- AUTO SAVE MAGIC (Bina kisi button ke) ---
             auto_update_summary(st.session_state.session_id, st.session_state.user_queries)
 
-# --- TAB 2 & 3: Admin Tabs (Sirf admin ke liye visible) ---
+# --- TAB 2 & 3: Admin Tabs ---
 if is_admin:
     with tab_db:
         st.subheader("📦 Showroom Database")
