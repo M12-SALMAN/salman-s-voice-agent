@@ -13,3 +13,4 @@ langchain-huggingface
 langchain-text-splitters
 langgraph
 sentence-transformers
+gTTS==2.5.1
