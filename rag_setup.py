@@ -5,11 +5,11 @@ from datetime import datetime
 from dotenv import load_dotenv
 import streamlit as st
 import base64
-import asyncio
-import edge_tts
+import io
 
-# --- Mic Library ---
+# --- Mic & Female Voice Library ---
 from streamlit_mic_recorder import speech_to_text
+from gtts import gTTS
 
 # Telemetry disable karne ke liye
 os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
@@ -24,7 +24,7 @@ from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 load_dotenv()
 
 # ==================================================================
-# 1. PAGE CONFIGURATION & PROFESSIONAL THEME (Completely Changed UI)
+# 1. PAGE CONFIGURATION & PROFESSIONAL THEME 
 # ==================================================================
 st.set_page_config(page_title="Customer Assistant Dashboard", layout="wide", page_icon="🎧")
 
@@ -111,35 +111,22 @@ LOG_DB_PATH = "./system_logs.db"
 os.makedirs(DOCS_FOLDER, exist_ok=True)
 
 # ==================================================================
-# 2. MALE VOICE GENERATION (URDU - LARKAY KI AWAAZ)
+# 2. FEMALE VOICE GENERATION (gTTS) & AUTOPLAY
 # ==================================================================
-def play_voice_male(text):
-    async def _generate():
-        # ur-PK-AsadNeural (Male Urdu Voice)
-        communicate = edge_tts.Communicate(text, "ur-PK-AsadNeural")
-        audio_data = b""
-        async for chunk in communicate.stream():
-            if chunk["type"] == "audio":
-                audio_data += chunk["data"]
-        return audio_data
-        
+def play_voice_female(text):
+    """Purani female voice generate karne ke liye"""
     try:
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-        
-        if loop.is_closed():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
-        return loop.run_until_complete(_generate())
+        # 'hi' (Hindi/Urdu) accent ke liye use kiya hai jo achi aawaz deta hai
+        tts = gTTS(text=text, lang='hi')
+        audio_bytes = io.BytesIO()
+        tts.write_to_fp(audio_bytes)
+        return audio_bytes.getvalue()
     except Exception as e:
-        print(f"Voice generation error: {e}")
+        print(f"Voice error: {e}")
         return None
 
 def autoplay_audio(audio_bytes):
+    """HTML trick to force browser autoplay"""
     b64 = base64.b64encode(audio_bytes).decode()
     md = f"""
         <audio autoplay="true" class="stAudio">
@@ -261,7 +248,7 @@ def run_sql_query(query: str) -> str:
 tools = [search_item_fuzzy, run_sql_query]
 
 # ==================================================================
-# 5. PROMPT + AGENT (Updated to Customer Assistant, No Name)
+# 5. PROMPT + AGENT
 # ==================================================================
 system_prompt = f"""Tum ek professional 'Customer Assistant' ho. Tumhara koi personal naam nahi hai.
 
@@ -375,8 +362,8 @@ with tab_chat:
             result = agent.invoke({"messages": st.session_state.chat_history})
             final_message = result["messages"][-1].content
             
-            # Male Voice Generate Karna (Asad)
-            audio_bytes = play_voice_male(final_message)
+            # Female Voice Generate Karna (gTTS)
+            audio_bytes = play_voice_female(final_message)
             
             with st.chat_message("assistant"):
                 st.markdown(final_message)
