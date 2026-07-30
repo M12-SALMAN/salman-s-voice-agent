@@ -387,6 +387,9 @@ with tab_chat:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
+    # === FIXED: Variable pehle define karein ===
+    quick_query = None
+
     # --- Quick Suggestions (Sirf tab nazar ayengi jab user ne koi sawal na pocha ho) ---
     if len(st.session_state.user_queries) == 0:
         st.write("💡 **Quick Suggestions:**")
@@ -400,8 +403,6 @@ with tab_chat:
         with sc3:
             if st.button("Kisto (Installment) ka kya plan hai?", use_container_width=True):
                 quick_query = "Kisto (Installment) ka kya plan hai?"
-    else:
-        quick_query = None
 
     # --- 🎙️ Mic aur Text Input ---
     col_mic, col_txt = st.columns([0.15, 0.85])
