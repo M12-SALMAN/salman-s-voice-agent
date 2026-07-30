@@ -29,64 +29,86 @@ from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 load_dotenv()
 
 # ==================================================================
-# 1. PAGE CONFIGURATION & CUSTOM THEME
+# 1. PAGE CONFIGURATION & ADVANCED THEME
 # ==================================================================
-st.set_page_config(page_title="Shamas Honda - Agent Dashboard", layout="wide", page_icon="🏍️")
+st.set_page_config(page_title="Shamas Honda - AI Agent", layout="wide", page_icon="🏍️")
 
-# --- CUSTOM CSS FOR HONDA THEME & WHITE-LABELING ---
+# --- ADVANCED CUSTOM CSS ---
 st.markdown("""
     <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+    
     /* Main Background aur Font */
     .stApp {
-        background-color: #f4f6f9;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f8f9fa;
+        font-family: 'Poppins', sans-serif;
     }
     
-    /* Honda Red Buttons */
+    /* Honda Red Gradient Buttons */
     .stButton>button {
-        background-color: #cc0000 !important;
+        background: linear-gradient(135deg, #cc0000 0%, #990000 100%) !important;
         color: white !important;
-        border-radius: 8px !important;
+        border-radius: 10px !important;
         border: none !important;
-        box-shadow: 0 4px 6px rgba(204, 0, 0, 0.2);
+        box-shadow: 0 4px 10px rgba(204, 0, 0, 0.3);
         transition: all 0.3s ease;
+        font-weight: 600;
     }
     .stButton>button:hover {
-        background-color: #990000 !important;
-        transform: translateY(-2px);
+        transform: translateY(-3px);
+        box-shadow: 0 6px 15px rgba(204, 0, 0, 0.4);
     }
     
-    /* Chat Message Bubbles Design */
+    /* Quick Suggestion Outline Buttons */
+    div[data-testid="stHorizontalBlock"] button {
+        background: transparent !important;
+        color: #cc0000 !important;
+        border: 2px solid #cc0000 !important;
+        box-shadow: none;
+    }
+    div[data-testid="stHorizontalBlock"] button:hover {
+        background: #cc0000 !important;
+        color: white !important;
+    }
+
+    /* Advanced Chat Message Bubbles */
     .stChatMessage {
         background-color: white;
         border-radius: 15px;
-        padding: 15px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.04);
+        margin-bottom: 20px;
+        border: 1px solid #eee;
+    }
+    
+    /* AI Message Marker */
+    div[data-testid="chat-message-assistant"] {
         border-left: 5px solid #cc0000;
-        margin-bottom: 15px;
+    }
+    /* User Message Marker */
+    div[data-testid="chat-message-user"] {
+        border-right: 5px solid #1a1a1a;
+        background-color: #fcfcfc;
     }
     
     /* Tabs Styling */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
+        gap: 15px;
+        padding-bottom: 10px;
     }
     .stTabs [data-baseweb="tab"] {
         height: 50px;
         background-color: white;
-        border-radius: 8px 8px 0px 0px;
-        padding: 10px 25px;
+        border-radius: 10px;
+        padding: 10px 30px;
         font-weight: 600;
-        border: 1px solid #ddd;
-        border-bottom: none;
+        border: 1px solid #eaeaea;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.02);
     }
     .stTabs [aria-selected="true"] {
-        background-color: #cc0000 !important;
+        background: linear-gradient(135deg, #cc0000 0%, #990000 100%) !important;
         color: white !important;
-    }
-    
-    /* Top Header aur Titles */
-    h1, h2, h3 {
-        color: #1a1a1a;
+        border: none;
     }
     
     /* Streamlit ki default branding hide karna */
@@ -109,7 +131,6 @@ os.makedirs(DOCS_FOLDER, exist_ok=True)
 # ==================================================================
 def play_voice(text):
     try:
-        # Roman Urdu/Hindi accent ke liye 'hi' select kiya gaya hai
         tts = gTTS(text=text, lang='hi')
         audio_bytes = io.BytesIO()
         tts.write_to_fp(audio_bytes)
@@ -119,7 +140,7 @@ def play_voice(text):
         return None
 
 # ==================================================================
-# 3. LOGGING DATABASE SETUP (Auto-Save Logic)
+# 3. LOGGING DATABASE SETUP
 # ==================================================================
 def init_logging_db():
     conn = sqlite3.connect(LOG_DB_PATH)
@@ -159,7 +180,7 @@ def auto_update_summary(session_id, user_queries_list):
         conn.commit()
         conn.close()
     except Exception as e:
-        print(f"[Log Error] Summary auto-update nahi ho saki: {e}")
+        pass
 
 # ----------------------------------------------------------------
 # CACHE MODELS 
@@ -302,7 +323,7 @@ init_logging_db()
 # --- SIDEBAR BRANDING & CONTROLS ---
 with st.sidebar:
     st.image("https://upload.wikimedia.org/wikipedia/commons/7/7b/Honda_Logo.svg", width=150)
-    st.title("Shamas Honda")
+    st.markdown("## Shamas Honda")
     st.caption("AI Sales & Inventory Agent")
     
     st.divider()
@@ -315,27 +336,32 @@ with st.sidebar:
         for key in ["session_id", "chat_history", "display_msgs", "user_queries"]:
             if key in st.session_state:
                 del st.session_state[key]
+        st.toast("✅ Nayi Chat Shuru Ho Gayi Hai!", icon="🔄")
         st.rerun()
         
     st.divider()
     
     # --- SECURE ADMIN PANEL ---
-    st.title("🔒 Admin Access")
-    admin_password = st.secrets.get("ADMIN_PASSWORD", "")
-    user_pass = st.text_input("Enter Password", type="password")
+    with st.expander("🔒 Admin Access"):
+        admin_password = st.secrets.get("ADMIN_PASSWORD", "")
+        user_pass = st.text_input("Enter Password", type="password")
 
 is_admin = (user_pass == admin_password and admin_password != "")
 
-st.title("🏍️ Shamas Honda - AI Agent")
+# Top Header
+col1, col2 = st.columns([0.8, 0.2])
+with col1:
+    st.title("🏍️ Shamas Honda - AI Agent")
+with col2:
+    if is_admin:
+        st.success("Admin Active")
 
-# Session State Initialize (With Salman's Greeting)
+# Session State Initialize
 if "session_id" not in st.session_state:
     st.session_state.session_id = get_new_session_id()
 
 if "chat_history" not in st.session_state:
-    # Yahan sirf salam aur madad ka poocha ja raha hai, naam nahi poocha jayega
     welcome_message = "Assalam o Alaikum! Main Salman baat kar raha hoon Shamas Honda Sialkot se. Main aapki kya madad kar sakta hoon?"
-    
     st.session_state.chat_history = [
         SystemMessage(content=system_prompt),
         AIMessage(content=welcome_message)
@@ -349,33 +375,49 @@ if "user_queries" not in st.session_state:
 
 
 if is_admin:
-    st.success("Admin Logged In! Dashboard and Logs Unlocked.")
-    tab_chat, tab_db, tab_logs = st.tabs(["💬 Chat with Salman", "📊 Showroom Database", "📝 Customer Logs"])
+    tab_chat, tab_db, tab_logs = st.tabs(["💬 Chat with Salman", "📊 Admin Dashboard", "📝 Customer Logs"])
 else:
-    # Aam user ke liye sirf chat tab show hoga
     tab_chat = st.container()
 
 # --- TAB 1: Chat Interface ---
 with tab_chat:
-    if is_admin:
-        st.subheader("💬 Live Chat Preview")
-
+    
+    # Display previous messages
     for msg in st.session_state.display_msgs:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    # --- 🎙️ Mic aur Text Input ---
-    spoken_text = speech_to_text(
-        language='ur-PK', 
-        start_prompt="🎙️ Bol kar poochein",
-        stop_prompt="🔴 Sun raha hai...",
-        just_once=True,
-        key='STT'
-    )
+    # --- Quick Suggestions (Sirf tab nazar ayengi jab user ne koi sawal na pocha ho) ---
+    if len(st.session_state.user_queries) == 0:
+        st.write("💡 **Quick Suggestions:**")
+        sc1, sc2, sc3 = st.columns(3)
+        with sc1:
+            if st.button("Honda CD 70 ki price kya hai?", use_container_width=True):
+                quick_query = "Honda CD 70 ki price kya hai?"
+        with sc2:
+            if st.button("CG 125 ke available colors?", use_container_width=True):
+                quick_query = "CG 125 ke available colors?"
+        with sc3:
+            if st.button("Kisto (Installment) ka kya plan hai?", use_container_width=True):
+                quick_query = "Kisto (Installment) ka kya plan hai?"
+    else:
+        quick_query = None
 
-    written_text = st.chat_input("Poochiye Honda CD 70 ki details...")
+    # --- 🎙️ Mic aur Text Input ---
+    col_mic, col_txt = st.columns([0.15, 0.85])
+    with col_mic:
+        spoken_text = speech_to_text(
+            language='ur-PK', 
+            start_prompt="🎙️ Bol kar...",
+            stop_prompt="🔴 Sun raha hai...",
+            just_once=True,
+            key='STT'
+        )
+    with col_txt:
+        written_text = st.chat_input("Apna sawal likhein (Maslan: CD 70 ki details...)")
     
-    question = written_text or spoken_text
+    # Input finalization
+    question = quick_query or written_text or spoken_text
 
     if question:
         st.chat_message("user").markdown(question)
@@ -387,7 +429,7 @@ with tab_chat:
         if len(st.session_state.chat_history) > 10:
             st.session_state.chat_history = [st.session_state.chat_history[0]] + st.session_state.chat_history[-8:]
 
-        with st.spinner("Salman check kar raha hai..."):
+        with st.spinner("Salman system check kar raha hai..."):
             result = agent.invoke({"messages": st.session_state.chat_history})
             final_message = result["messages"][-1].content
             
@@ -401,18 +443,32 @@ with tab_chat:
             st.session_state.chat_history = list(result["messages"])
             
             auto_update_summary(st.session_state.session_id, st.session_state.user_queries)
+        
+        st.rerun() # Refresh to clear suggestions if used
 
-# --- TAB 2 & 3: Admin Tabs (Sirf Admin ko show hongay) ---
+# --- TAB 2 & 3: Admin Tabs ---
 if is_admin:
     with tab_db:
-        st.subheader("📦 Showroom Database")
+        st.subheader("📊 Showroom Analytics & Database")
+        
+        # Advanced Stat Cards
         conn = sqlite3.connect(DB_PATH)
+        m1, m2, m3 = st.columns(3)
+        with m1:
+            st.metric(label="Total Tables", value=len(SCHEMA.keys()))
+        with m2:
+            st.metric(label="System Status", value="Online", delta="Salman is Active")
+        with m3:
+            st.metric(label="Total Chat Sessions", value=st.session_state.session_id)
+            
+        st.markdown("---")
+        
         cursor = conn.cursor()
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
         tables = [row[0] for row in cursor.fetchall()]
         
         if tables:
-            selected_table = st.selectbox("Apni Table Select Karein:", tables)
+            selected_table = st.selectbox("📌 Select Table to View:", tables)
             df = pd.read_sql_query(f"SELECT * FROM {selected_table}", conn)
             st.dataframe(df, use_container_width=True, hide_index=True)
         else:
