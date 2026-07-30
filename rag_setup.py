@@ -29,9 +29,72 @@ from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 load_dotenv()
 
 # ==================================================================
-# PAGE CONFIGURATION (Streamlit)
+# 1. PAGE CONFIGURATION & CUSTOM THEME
 # ==================================================================
 st.set_page_config(page_title="Shamas Honda - Agent Dashboard", layout="wide", page_icon="🏍️")
+
+# --- CUSTOM CSS FOR HONDA THEME & WHITE-LABELING ---
+st.markdown("""
+    <style>
+    /* Main Background aur Font */
+    .stApp {
+        background-color: #f4f6f9;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    /* Honda Red Buttons */
+    .stButton>button {
+        background-color: #cc0000 !important;
+        color: white !important;
+        border-radius: 8px !important;
+        border: none !important;
+        box-shadow: 0 4px 6px rgba(204, 0, 0, 0.2);
+        transition: all 0.3s ease;
+    }
+    .stButton>button:hover {
+        background-color: #990000 !important;
+        transform: translateY(-2px);
+    }
+    
+    /* Chat Message Bubbles Design */
+    .stChatMessage {
+        background-color: white;
+        border-radius: 15px;
+        padding: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        border-left: 5px solid #cc0000;
+        margin-bottom: 15px;
+    }
+    
+    /* Tabs Styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 10px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        background-color: white;
+        border-radius: 8px 8px 0px 0px;
+        padding: 10px 25px;
+        font-weight: 600;
+        border: 1px solid #ddd;
+        border-bottom: none;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #cc0000 !important;
+        color: white !important;
+    }
+    
+    /* Top Header aur Titles */
+    h1, h2, h3 {
+        color: #1a1a1a;
+    }
+    
+    /* Streamlit ki default branding hide karna */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    </style>
+""", unsafe_allow_html=True)
 
 DATA_FOLDER = "./data"
 DOCS_FOLDER = "./documents"
@@ -42,7 +105,7 @@ LOG_DB_PATH = "./chat_logs.db"
 os.makedirs(DOCS_FOLDER, exist_ok=True)
 
 # ==================================================================
-# VOICE GENERATION FUNCTION
+# 2. VOICE GENERATION FUNCTION
 # ==================================================================
 def play_voice(text):
     try:
@@ -56,7 +119,7 @@ def play_voice(text):
         return None
 
 # ==================================================================
-# LOGGING DATABASE SETUP (Auto-Save Logic)
+# 3. LOGGING DATABASE SETUP (Auto-Save Logic)
 # ==================================================================
 def init_logging_db():
     conn = sqlite3.connect(LOG_DB_PATH)
@@ -111,7 +174,7 @@ def load_models():
 llm, embeddings, reranker_model = load_models()
 
 # ==================================================================
-# 3. EXCEL -> SQLite 
+# 4. EXCEL -> SQLite 
 # ==================================================================
 @st.cache_data
 def load_excels_to_sqlite() -> dict:
@@ -236,18 +299,28 @@ agent = get_agent()
 # ==================================================================
 init_logging_db()
 
-if "session_id" not in st.session_state:
-    st.session_state.session_id = get_new_session_id()
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = [SystemMessage(content=system_prompt)]
-if "display_msgs" not in st.session_state:
-    st.session_state.display_msgs = []
-if "user_queries" not in st.session_state:
-    st.session_state.user_queries = []
-
-# --- SECURE ADMIN SIDEBAR ---
+# --- SIDEBAR BRANDING & CONTROLS ---
 with st.sidebar:
-    st.title("🔒 System Access")
+    st.image("https://upload.wikimedia.org/wikipedia/commons/7/7b/Honda_Logo.svg", width=150)
+    st.title("Shamas Honda")
+    st.caption("AI Sales & Inventory Agent")
+    
+    st.divider()
+    st.markdown("📍 **Location:** Circular Road, Sialkot")
+    st.markdown("📞 **Helpline:** 0300-XXXXXXX")
+    st.markdown("⏰ **Timings:** 10:00 AM - 8:00 PM")
+    
+    st.divider()
+    if st.button("🗑️ Nayi Chat Shuru Karein", use_container_width=True):
+        for key in ["session_id", "chat_history", "display_msgs", "user_queries"]:
+            if key in st.session_state:
+                del st.session_state[key]
+        st.rerun()
+        
+    st.divider()
+    
+    # --- SECURE ADMIN PANEL ---
+    st.title("🔒 Admin Access")
     admin_password = st.secrets.get("ADMIN_PASSWORD", "")
     user_pass = st.text_input("Enter Password", type="password")
 
@@ -255,21 +328,43 @@ is_admin = (user_pass == admin_password and admin_password != "")
 
 st.title("🏍️ Shamas Honda - AI Agent")
 
+# Session State Initialize (With Salman's Greeting)
+if "session_id" not in st.session_state:
+    st.session_state.session_id = get_new_session_id()
+
+if "chat_history" not in st.session_state:
+    # Yahan sirf salam aur madad ka poocha ja raha hai, naam nahi poocha jayega
+    welcome_message = "Assalam o Alaikum! Main Salman baat kar raha hoon Shamas Honda Sialkot se. Main aapki kya madad kar sakta hoon?"
+    
+    st.session_state.chat_history = [
+        SystemMessage(content=system_prompt),
+        AIMessage(content=welcome_message)
+    ]
+    st.session_state.display_msgs = [
+        {"role": "assistant", "content": welcome_message}
+    ]
+    
+if "user_queries" not in st.session_state:
+    st.session_state.user_queries = []
+
+
 if is_admin:
     st.success("Admin Logged In! Dashboard and Logs Unlocked.")
-    tab_chat, tab_db, tab_logs = st.tabs(["💬 Chat", "📊 Database", "📝 Customer Logs"])
+    tab_chat, tab_db, tab_logs = st.tabs(["💬 Chat with Salman", "📊 Showroom Database", "📝 Customer Logs"])
 else:
+    # Aam user ke liye sirf chat tab show hoga
     tab_chat = st.container()
 
 # --- TAB 1: Chat Interface ---
 with tab_chat:
-    st.subheader("💬 Chat with Salman")
+    if is_admin:
+        st.subheader("💬 Live Chat Preview")
 
     for msg in st.session_state.display_msgs:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    # --- 🎙️ Naya Mic Button Hissa (Updated Text) ---
+    # --- 🎙️ Mic aur Text Input ---
     spoken_text = speech_to_text(
         language='ur-PK', 
         start_prompt="🎙️ Bol kar poochein",
@@ -280,7 +375,6 @@ with tab_chat:
 
     written_text = st.chat_input("Poochiye Honda CD 70 ki details...")
     
-    # Dono mein se jo bhi input aye (Voice ya Text)
     question = written_text or spoken_text
 
     if question:
@@ -297,21 +391,18 @@ with tab_chat:
             result = agent.invoke({"messages": st.session_state.chat_history})
             final_message = result["messages"][-1].content
             
-            # 1. Text message UI mein show karein
             st.chat_message("assistant").markdown(final_message)
             
-            # 2. Voice generate aur play karein
             audio_data = play_voice(final_message)
             if audio_data:
                 st.audio(audio_data, format="audio/mp3", autoplay=True)
             
-            # 3. History update karein
             st.session_state.display_msgs.append({"role": "assistant", "content": final_message})
             st.session_state.chat_history = list(result["messages"])
             
             auto_update_summary(st.session_state.session_id, st.session_state.user_queries)
 
-# --- TAB 2 & 3: Admin Tabs ---
+# --- TAB 2 & 3: Admin Tabs (Sirf Admin ko show hongay) ---
 if is_admin:
     with tab_db:
         st.subheader("📦 Showroom Database")
