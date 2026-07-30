@@ -15,3 +15,4 @@ langgraph
 sentence-transformers
 gTTS==2.5.1
 streamlit-mic-recorder
+edge-tts
