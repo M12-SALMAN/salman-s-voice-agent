@@ -33,120 +33,164 @@ load_dotenv()
 # ==================================================================
 # PAGE CONFIGURATION (Streamlit)
 # ==================================================================
-st.set_page_config(page_title="Customer Assistant Portal", layout="wide", page_icon="🎧")
+st.set_page_config(page_title="AI Customer Assistant", layout="wide", page_icon="⚡")
 
 # ==================================================================
-# ADVANCED "CALLING AGENT" FRONTEND DESIGN (CSS)
+# HIGH-END SaaS FRONTEND DESIGN (Retell/Synthflow Inspired)
 # ==================================================================
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     
+    /* Overall App Background */
     .stApp {
-        background-color: #f4f7fb;
+        background-color: #FAFAFA;
         font-family: 'Inter', sans-serif;
     }
     
-    /* ---------------- AGENT PROFILE HEADER ---------------- */
+    /* ---------------- GLASSMORPHISM AGENT HEADER ---------------- */
+    .agent-header-container {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 40px;
+        margin-top: 10px;
+    }
+    
     .agent-header {
         display: flex;
-        flex-direction: column;
         align-items: center;
-        justify-content: center;
-        padding: 30px 10px 10px 10px;
-        margin-bottom: 20px;
-        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-        border-radius: 20px;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.04);
-        border: 1px solid #e2e8f0;
+        gap: 20px;
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        padding: 20px 40px;
+        border-radius: 100px;
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        box-shadow: 0 10px 40px -10px rgba(0,0,0,0.08);
+    }
+    
+    /* Glowing Avatar */
+    .agent-avatar-wrapper {
+        position: relative;
     }
     
     .agent-avatar {
-        width: 130px;
-        height: 130px;
+        width: 70px;
+        height: 70px;
         border-radius: 50%;
-        background-color: #e2e8f0;
-        border: 4px solid #1e3c72;
-        padding: 5px;
-        box-shadow: 0 10px 20px rgba(30, 60, 114, 0.15);
+        background-color: #f1f5f9;
         object-fit: cover;
+        z-index: 2;
+        position: relative;
+    }
+    
+    .avatar-ring {
+        position: absolute;
+        top: -4px;
+        left: -4px;
+        right: -4px;
+        bottom: -4px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+        z-index: 1;
+        animation: spin-pulse 3s linear infinite;
+        opacity: 0.6;
+    }
+    
+    @keyframes spin-pulse {
+        0% { transform: scale(1); opacity: 0.5; }
+        50% { transform: scale(1.1); opacity: 0.8; }
+        100% { transform: scale(1); opacity: 0.5; }
+    }
+    
+    .agent-details {
+        display: flex;
+        flex-direction: column;
     }
     
     .agent-name {
-        font-size: 24px;
-        font-weight: 600;
-        color: #1e293b;
-        margin-top: 15px;
-        margin-bottom: 5px;
+        font-size: 20px;
+        font-weight: 700;
+        color: #0f172a;
+        letter-spacing: -0.5px;
     }
     
-    /* Live Status Glowing Dot */
-    .status-container {
+    /* Minimalist Status Badge */
+    .status-badge {
         display: flex;
         align-items: center;
-        gap: 8px;
-        background: #ecfdf5;
-        padding: 6px 15px;
-        border-radius: 20px;
-        border: 1px solid #a7f3d0;
+        gap: 6px;
+        margin-top: 4px;
     }
     
-    .pulse-dot {
-        width: 10px;
-        height: 10px;
+    .status-dot {
+        width: 8px;
+        height: 8px;
         background-color: #10b981;
         border-radius: 50%;
-        box-shadow: 0 0 0 rgba(16, 185, 129, 0.4);
-        animation: pulse 1.5s infinite;
+        box-shadow: 0 0 8px #10b981;
     }
     
     .status-text {
-        font-size: 14px;
+        font-size: 13px;
         font-weight: 500;
-        color: #047857;
-    }
-    
-    @keyframes pulse {
-        0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-        70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        color: #64748b;
     }
 
-    /* ---------------- CHAT INTERFACE ---------------- */
-    .stChatMessage {
-        background-color: white;
-        border-radius: 16px;
-        padding: 18px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
-        margin-bottom: 20px;
-        border: none !important;
-    }
-    
+    /* ---------------- HIGH-CONTRAST CHAT INTERFACE ---------------- */
+    /* Assistant Message (White Card) */
     div[data-testid="chat-message-assistant"] {
-        border-left: 5px solid #1e3c72 !important;
-        background: linear-gradient(to right, #ffffff, #f8fafc);
+        background-color: #ffffff !important;
+        border-radius: 20px 20px 20px 4px !important;
+        padding: 20px 25px !important;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.04) !important;
+        border: 1px solid #f1f5f9 !important;
+        color: #334155 !important;
+        margin-bottom: 24px;
+        max-width: 85%;
     }
     
+    /* User Message (Dark Slate Card) */
     div[data-testid="chat-message-user"] {
-        border-right: 5px solid #64748b !important;
-        background-color: #ffffff;
+        background-color: #0f172a !important;
+        border-radius: 20px 20px 4px 20px !important;
+        padding: 20px 25px !important;
+        color: #f8fafc !important;
+        box-shadow: 0 4px 20px rgba(15, 23, 42, 0.1) !important;
+        margin-bottom: 24px;
+        margin-left: auto;
+        max-width: 85%;
+        border: none !important;
+    }
+    
+    /* Remove default Streamlit avatar backgrounds */
+    .stChatMessage [data-testid="stIcon"] {
+        display: none;
     }
 
-    /* ---------------- BUTTONS ---------------- */
+    /* ---------------- BUTTONS & INPUTS ---------------- */
     .stButton>button {
-        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%) !important;
+        background: #0f172a !important;
         color: white !important;
-        border-radius: 10px !important;
+        border-radius: 12px !important;
         border: none !important;
-        box-shadow: 0 4px 15px rgba(30, 60, 114, 0.2);
-        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(15,23,42,0.15);
+        transition: all 0.2s ease;
         font-weight: 600;
-        letter-spacing: 0.5px;
-        height: 50px;
+        height: 48px;
     }
     .stButton>button:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 20px rgba(30, 60, 114, 0.3);
+        transform: translateY(-2px);
+        background: #1e293b !important;
+        box-shadow: 0 6px 20px rgba(15,23,42,0.2);
+    }
+
+    /* Clean Audio Player */
+    audio {
+        height: 40px;
+        border-radius: 12px;
+        outline: none;
+        margin-top: 10px;
     }
 
     /* Hide Default Headers */
@@ -203,7 +247,7 @@ def autoplay_audio(audio_bytes):
     st.markdown(md, unsafe_allow_html=True)
 
 # ==================================================================
-# LOGGING DATABASE SETUP (Auto-Save Logic)
+# LOGGING DATABASE SETUP
 # ==================================================================
 def init_logging_db():
     conn = sqlite3.connect(LOG_DB_PATH)
@@ -356,7 +400,7 @@ tools = [search_item_fuzzy, run_sql_query, search_documents]
 # ==================================================================
 # 5. PROMPT + AGENT (Human-like Conversational Tone)
 # ==================================================================
-system_prompt = f"""Tum ek professional Customer Assistant ho. Tumhara koi personal naam nahi hai. Tumhara kaam call center agent ki tarha customers ko guide karna hai.
+system_prompt = f"""Tum ek professional Customer Assistant ho. Tumhara koi personal naam nahi hai. Tumhara kaam AI call agent ki tarha customers ko smoothly guide karna hai.
 
 Database mein yeh tables maujood hain:
 {SCHEMA_TEXT}
@@ -365,7 +409,7 @@ Rule 0: HAMESHA pehle tool call karo.
 Rule 1: Kisi specific product, part, ya accessory ki detail/price mangi jaye to HAMESHA 'search_item_fuzzy' tool use karo.
 Rule 2: Complex analysis (Counting, Totals) ke liye 'run_sql_query' use karo.
 Rule 3: Policy, agreement ya document se related sawal ho to 'search_documents' use karo.
-Rule 4: Agar sab tools fail ho jayen, to bolo "Maaf kijiye ga, ye maloomat abhi mere paas nahi hai, baraye meharbani helpline par rabta kar lein".
+Rule 4: Agar sab tools fail ho jayen, to bolo "Maaf kijiye ga, ye maloomat abhi mere paas nahi hai, baraye meharbani support team se rabta kar lein".
 Rule 5: SAB SE ZAROORI: Tumhari baat cheet bilkul ek aam insaan (human) ki tarha honi chahiye. AI ya robot ki tarha lamba aur mushkil jawab nahi dena. Chotay, friendly, aur conversational sentences use karo (jaise "Ji bilkul", "Han ji", "Zaroor", "Dekhein").
 Rule 6: Jawab Roman Urdu mein do. Price ho to Rs likho.
 Rule 7: Pichli baatcheet yaad rakho.
@@ -395,29 +439,36 @@ if "user_queries" not in st.session_state:
 
 # --- SECURE ADMIN SIDEBAR ---
 with st.sidebar:
-    st.title("🔒 System Access")
+    st.title("🔒 System Settings")
     admin_password = st.secrets.get("ADMIN_PASSWORD", "")
-    user_pass = st.text_input("Enter Password", type="password")
+    user_pass = st.text_input("Enter Passkey", type="password")
 
 is_admin = (user_pass == admin_password and admin_password != "")
 
 if is_admin:
-    st.success("🟢 Admin Logged In! Dashboard and Logs Unlocked.")
-    tab_chat, tab_db, tab_logs = st.tabs(["💬 Voice Assistant", "📊 Database", "📝 Session Logs"])
+    st.success("🟢 Admin Access Granted")
+    tab_chat, tab_db, tab_logs = st.tabs(["💬 Assistant", "📊 Database", "📝 Logs"])
 else:
     tab_chat = st.container()
 
 # --- TAB 1: Chat Interface ---
 with tab_chat:
     
-    # Custom Calling Profile Header (Male 3D Avatar)
+    # Premium AI SaaS Calling Profile Header
     st.markdown("""
-        <div class="agent-header">
-            <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/People/Man%20Office%20Worker.png" class="agent-avatar" alt="Agent">
-            <div class="agent-name">Customer Assistant</div>
-            <div class="status-container">
-                <div class="pulse-dot"></div>
-                <div class="status-text">Online & Ready to Help</div>
+        <div class="agent-header-container">
+            <div class="agent-header">
+                <div class="agent-avatar-wrapper">
+                    <div class="avatar-ring"></div>
+                    <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/People/Man%20Office%20Worker.png" class="agent-avatar" alt="AI Agent">
+                </div>
+                <div class="agent-details">
+                    <div class="agent-name">Voice Assistant</div>
+                    <div class="status-badge">
+                        <div class="status-dot"></div>
+                        <div class="status-text">Listening & ready</div>
+                    </div>
+                </div>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -426,18 +477,17 @@ with tab_chat:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    # --- 🎙️ Naya Mic Button Hissa ---
+    # --- 🎙️ Mic Button ---
     spoken_text = speech_to_text(
         language='ur-PK', 
-        start_prompt="🎙️ Tap to Speak (Bolein)",
-        stop_prompt="🔴 Listening (Sun raha hoon)...",
+        start_prompt="🎙️ Tap to Speak",
+        stop_prompt="🔴 Processing...",
         just_once=True,
         key='STT'
     )
 
-    written_text = st.chat_input("Apna sawal yahan type karein...")
+    written_text = st.chat_input("Type your message here...")
     
-    # Dono mein se jo bhi input aye (Voice ya Text)
     question = written_text or spoken_text
 
     if question:
@@ -450,20 +500,17 @@ with tab_chat:
         if len(st.session_state.chat_history) > 10:
             st.session_state.chat_history = [st.session_state.chat_history[0]] + st.session_state.chat_history[-8:]
 
-        with st.spinner("Assistant data check kar raha hai..."):
+        with st.spinner("AI is generating response..."):
             result = agent.invoke({"messages": st.session_state.chat_history})
             final_message = result["messages"][-1].content
             
-            # 1. Text message UI mein show karein
             st.chat_message("assistant").markdown(final_message)
             
-            # 2. Male Voice generate aur play karein
             audio_data = play_voice_male(final_message)
             if audio_data:
                 autoplay_audio(audio_data)
                 st.audio(audio_data, format="audio/mp3")
             
-            # 3. History update karein
             st.session_state.display_msgs.append({"role": "assistant", "content": final_message})
             st.session_state.chat_history = list(result["messages"])
             
@@ -472,28 +519,27 @@ with tab_chat:
 # --- TAB 2 & 3: Admin Tabs ---
 if is_admin:
     with tab_db:
-        st.subheader("📦 System Database")
+        st.subheader("📦 Knowledge Base")
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
         tables = [row[0] for row in cursor.fetchall()]
         
         if tables:
-            selected_table = st.selectbox("Apni Table Select Karein:", tables)
+            selected_table = st.selectbox("Select Table:", tables)
             df = pd.read_sql_query(f"SELECT * FROM {selected_table}", conn)
             st.dataframe(df, use_container_width=True, hide_index=True)
         else:
-            st.info("Abhi tak koi Excel data table maujood nahi hai.")
+            st.info("No databases connected.")
         conn.close()
         
     with tab_logs:
-        st.subheader("📝 Live Session Logs")
-        st.caption("Yeh logs har message ke baad khud update hote hain.")
+        st.subheader("📝 Conversation Logs")
         log_conn = sqlite3.connect(LOG_DB_PATH)
         try:
             chat_df = pd.read_sql_query("SELECT session_id, timestamp, summary as user_questions FROM chat_summaries ORDER BY session_id DESC", log_conn)
             st.dataframe(chat_df, use_container_width=True, hide_index=True)
         except Exception as e:
-            st.info("Abhi tak koi chat history nahi hai.")
+            st.info("No chat history found.")
         finally:
             log_conn.close()
