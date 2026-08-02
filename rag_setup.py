@@ -10,6 +10,7 @@ import base64
 import asyncio
 import edge_tts
 import io
+import time
 
 # --- Mic Library ---
 from streamlit_mic_recorder import speech_to_text
@@ -483,6 +484,7 @@ with tab_chat:
             </div>
         """, unsafe_allow_html=True)
 
+        # Pehle ke tamam messages display karna
         for msg in st.session_state.display_msgs:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
@@ -497,24 +499,23 @@ with tab_chat:
 
         written_text = st.chat_input("Type your message here...")
         
-        # --- NEW LOGIC: Convert Urdu script to Roman Urdu automatically ---
+        # --- LOGIC: Convert Urdu script to Roman Urdu automatically ---
         question = None
         if written_text:
             question = written_text
         elif spoken_text:
             with st.spinner("Converting voice to Roman Urdu..."):
                 try:
-                    # Groq LLM ka istemal karte hue Urdu ko Roman Urdu mein convert karna
                     transliteration_prompt = [
                         SystemMessage(content="You are an expert transliterator. Convert the following Urdu script text into natural Roman Urdu. Output ONLY the converted Roman Urdu text, with no quotation marks or extra explanations."),
                         HumanMessage(content=spoken_text)
                     ]
                     question = llm.invoke(transliteration_prompt).content.strip()
                 except Exception as e:
-                    # Agar kisi wajah se LLM fail ho jaye, to default text use hoga
                     question = spoken_text
 
         if question:
+            # User ka sawal show karna
             st.chat_message("user").markdown(question)
             
             st.session_state.display_msgs.append({"role": "user", "content": question})
@@ -524,17 +525,28 @@ with tab_chat:
             if len(st.session_state.chat_history) > 10:
                 st.session_state.chat_history = [st.session_state.chat_history[0]] + st.session_state.chat_history[-8:]
 
-            with st.spinner("AI is generating response..."):
-                result = agent.invoke({"messages": st.session_state.chat_history})
-                final_message = result["messages"][-1].content
+            # --- AI Jawab aur Typing Effect ---
+            with st.chat_message("assistant"):
+                with st.spinner("Salman is thinking..."):
+                    result = agent.invoke({"messages": st.session_state.chat_history})
+                    final_message = result["messages"][-1].content
                 
-                st.chat_message("assistant").markdown(final_message)
+                # Streaming (Typing) effect function
+                def stream_text_effect(text):
+                    for word in text.split(" "):
+                        yield word + " "
+                        time.sleep(0.05) # Typing speed control
                 
+                # Jawab ko screen par sath sath type karna
+                st.write_stream(stream_text_effect(final_message))
+                
+                # Typing complete hone ke baad voice generate aur play karna
                 audio_data = play_voice_male(final_message)
                 if audio_data:
                     autoplay_audio(audio_data)
                     st.audio(audio_data, format="audio/mp3")
                 
+                # History aur state update karna
                 st.session_state.display_msgs.append({"role": "assistant", "content": final_message})
                 st.session_state.chat_history = list(result["messages"])
                 
