@@ -36,13 +36,12 @@ load_dotenv()
 st.set_page_config(page_title="AI Customer Assistant", layout="wide", page_icon="⚡")
 
 # ==================================================================
-# HIGH-END SaaS FRONTEND DESIGN (Retell/Synthflow Inspired)
+# HIGH-END SaaS FRONTEND DESIGN (Fixed Layout)
 # ==================================================================
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     
-    /* Overall App Background */
     .stApp {
         background-color: #FAFAFA;
         font-family: 'Inter', sans-serif;
@@ -52,7 +51,7 @@ st.markdown("""
     .agent-header-container {
         display: flex;
         justify-content: center;
-        margin-bottom: 40px;
+        margin-bottom: 30px;
         margin-top: 10px;
     }
     
@@ -60,23 +59,22 @@ st.markdown("""
         display: flex;
         align-items: center;
         gap: 20px;
-        background: rgba(255, 255, 255, 0.7);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        padding: 20px 40px;
-        border-radius: 100px;
-        border: 1px solid rgba(226, 232, 240, 0.8);
-        box-shadow: 0 10px 40px -10px rgba(0,0,0,0.08);
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        padding: 15px 35px;
+        border-radius: 60px;
+        border: 1px solid rgba(226, 232, 240, 0.9);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.06);
     }
     
-    /* Glowing Avatar */
     .agent-avatar-wrapper {
         position: relative;
     }
     
     .agent-avatar {
-        width: 70px;
-        height: 70px;
+        width: 65px;
+        height: 65px;
         border-radius: 50%;
         background-color: #f1f5f9;
         object-fit: cover;
@@ -86,20 +84,20 @@ st.markdown("""
     
     .avatar-ring {
         position: absolute;
-        top: -4px;
-        left: -4px;
-        right: -4px;
-        bottom: -4px;
+        top: -3px;
+        left: -3px;
+        right: -3px;
+        bottom: -3px;
         border-radius: 50%;
         background: linear-gradient(135deg, #3b82f6, #8b5cf6);
         z-index: 1;
         animation: spin-pulse 3s linear infinite;
-        opacity: 0.6;
+        opacity: 0.7;
     }
     
     @keyframes spin-pulse {
         0% { transform: scale(1); opacity: 0.5; }
-        50% { transform: scale(1.1); opacity: 0.8; }
+        50% { transform: scale(1.08); opacity: 0.9; }
         100% { transform: scale(1); opacity: 0.5; }
     }
     
@@ -109,13 +107,12 @@ st.markdown("""
     }
     
     .agent-name {
-        font-size: 20px;
+        font-size: 19px;
         font-weight: 700;
         color: #0f172a;
-        letter-spacing: -0.5px;
+        letter-spacing: -0.3px;
     }
     
-    /* Minimalist Status Badge */
     .status-badge {
         display: flex;
         align-items: center;
@@ -132,52 +129,66 @@ st.markdown("""
     }
     
     .status-text {
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 500;
         color: #64748b;
     }
 
-    /* ---------------- HIGH-CONTRAST CHAT INTERFACE ---------------- */
-    /* Assistant Message (White Card) */
+    /* ---------------- CHAT INTERFACE ---------------- */
     div[data-testid="chat-message-assistant"] {
         background-color: #ffffff !important;
-        border-radius: 20px 20px 20px 4px !important;
-        padding: 20px 25px !important;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.04) !important;
+        border-radius: 16px 16px 16px 4px !important;
+        padding: 15px 20px !important;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03) !important;
         border: 1px solid #f1f5f9 !important;
         color: #334155 !important;
-        margin-bottom: 24px;
-        max-width: 85%;
+        margin-bottom: 20px;
+        max-width: 90%;
     }
     
-    /* User Message (Dark Slate Card) */
     div[data-testid="chat-message-user"] {
         background-color: #0f172a !important;
-        border-radius: 20px 20px 4px 20px !important;
-        padding: 20px 25px !important;
+        border-radius: 16px 16px 4px 16px !important;
+        padding: 15px 20px !important;
         color: #f8fafc !important;
-        box-shadow: 0 4px 20px rgba(15, 23, 42, 0.1) !important;
-        margin-bottom: 24px;
+        box-shadow: 0 4px 15px rgba(15, 23, 42, 0.1) !important;
+        margin-bottom: 20px;
         margin-left: auto;
-        max-width: 85%;
+        max-width: 90%;
         border: none !important;
     }
     
-    /* Remove default Streamlit avatar backgrounds */
     .stChatMessage [data-testid="stIcon"] {
         display: none;
     }
 
-    /* ---------------- BUTTONS & INPUTS ---------------- */
+    /* ---------------- AGGRESSIVE INPUT BOX STYLING ---------------- */
+    /* Target the text input box */
+    div[data-testid="stChatInput"] {
+        background-color: #ffffff !important;
+        border-radius: 30px !important;
+        border: 1px solid #e2e8f0 !important;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.04) !important;
+        padding: 2px 10px !important;
+    }
+    
+    /* Target the mic button area to make it blend better */
+    div[data-testid="stVerticalBlock"] > div:has(button) {
+        display: flex;
+        justify-content: center;
+        margin-bottom: -15px; /* Pulls it closer to the input box */
+    }
+
     .stButton>button {
         background: #0f172a !important;
         color: white !important;
-        border-radius: 12px !important;
+        border-radius: 30px !important;
         border: none !important;
         box-shadow: 0 4px 15px rgba(15,23,42,0.15);
         transition: all 0.2s ease;
         font-weight: 600;
-        height: 48px;
+        height: 45px;
+        padding: 0 25px !important;
     }
     .stButton>button:hover {
         transform: translateY(-2px);
@@ -185,15 +196,14 @@ st.markdown("""
         box-shadow: 0 6px 20px rgba(15,23,42,0.2);
     }
 
-    /* Clean Audio Player */
     audio {
         height: 40px;
         border-radius: 12px;
         outline: none;
         margin-top: 10px;
+        width: 100%;
     }
 
-    /* Hide Default Headers */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
@@ -209,11 +219,10 @@ LOG_DB_PATH = "./chat_logs.db"
 os.makedirs(DOCS_FOLDER, exist_ok=True)
 
 # ==================================================================
-# VOICE GENERATION FUNCTION (Male Voice - Asad Real Human Tone)
+# VOICE GENERATION FUNCTION
 # ==================================================================
 def play_voice_male(text):
     async def _generate():
-        # 'ur-PK-AsadNeural' ek male Pakistani/Urdu voice hai jo bohat natural hai
         communicate = edge_tts.Communicate(text, "ur-PK-AsadNeural")
         audio_data = b""
         async for chunk in communicate.stream():
@@ -437,7 +446,6 @@ if "display_msgs" not in st.session_state:
 if "user_queries" not in st.session_state:
     st.session_state.user_queries = []
 
-# --- SECURE ADMIN SIDEBAR ---
 with st.sidebar:
     st.title("🔒 System Settings")
     admin_password = st.secrets.get("ADMIN_PASSWORD", "")
@@ -454,67 +462,71 @@ else:
 # --- TAB 1: Chat Interface ---
 with tab_chat:
     
-    # Premium AI SaaS Calling Profile Header
-    st.markdown("""
-        <div class="agent-header-container">
-            <div class="agent-header">
-                <div class="agent-avatar-wrapper">
-                    <div class="avatar-ring"></div>
-                    <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/People/Man%20Office%20Worker.png" class="agent-avatar" alt="AI Agent">
-                </div>
-                <div class="agent-details">
-                    <div class="agent-name">Voice Assistant</div>
-                    <div class="status-badge">
-                        <div class="status-dot"></div>
-                        <div class="status-text">Listening & ready</div>
+    # 📌 YAHAN TABDEELI KI HAI: Screen ko 3 hisson mein taqseem kiya hai taake chat center mein widget ki tarha aye
+    left_spacer, center_column, right_spacer = st.columns([1, 2, 1])
+    
+    with center_column:
+        
+        st.markdown("""
+            <div class="agent-header-container">
+                <div class="agent-header">
+                    <div class="agent-avatar-wrapper">
+                        <div class="avatar-ring"></div>
+                        <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/People/Man%20Office%20Worker.png" class="agent-avatar" alt="AI Agent">
+                    </div>
+                    <div class="agent-details">
+                        <div class="agent-name">Voice Assistant</div>
+                        <div class="status-badge">
+                            <div class="status-dot"></div>
+                            <div class="status-text">Listening & ready</div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
-    for msg in st.session_state.display_msgs:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
+        for msg in st.session_state.display_msgs:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
 
-    # --- 🎙️ Mic Button ---
-    spoken_text = speech_to_text(
-        language='ur-PK', 
-        start_prompt="🎙️ Tap to Speak",
-        stop_prompt="🔴 Processing...",
-        just_once=True,
-        key='STT'
-    )
+        # Mic Button ab inputs ke bilkul kareeb center mein hoga
+        spoken_text = speech_to_text(
+            language='ur-PK', 
+            start_prompt="🎙️ Tap to Speak",
+            stop_prompt="🔴 Processing...",
+            just_once=True,
+            key='STT'
+        )
 
-    written_text = st.chat_input("Type your message here...")
-    
-    question = written_text or spoken_text
-
-    if question:
-        st.chat_message("user").markdown(question)
+        written_text = st.chat_input("Type your message here...")
         
-        st.session_state.display_msgs.append({"role": "user", "content": question})
-        st.session_state.chat_history.append(HumanMessage(content=question))
-        st.session_state.user_queries.append(question)
+        question = written_text or spoken_text
 
-        if len(st.session_state.chat_history) > 10:
-            st.session_state.chat_history = [st.session_state.chat_history[0]] + st.session_state.chat_history[-8:]
+        if question:
+            st.chat_message("user").markdown(question)
+            
+            st.session_state.display_msgs.append({"role": "user", "content": question})
+            st.session_state.chat_history.append(HumanMessage(content=question))
+            st.session_state.user_queries.append(question)
 
-        with st.spinner("AI is generating response..."):
-            result = agent.invoke({"messages": st.session_state.chat_history})
-            final_message = result["messages"][-1].content
-            
-            st.chat_message("assistant").markdown(final_message)
-            
-            audio_data = play_voice_male(final_message)
-            if audio_data:
-                autoplay_audio(audio_data)
-                st.audio(audio_data, format="audio/mp3")
-            
-            st.session_state.display_msgs.append({"role": "assistant", "content": final_message})
-            st.session_state.chat_history = list(result["messages"])
-            
-            auto_update_summary(st.session_state.session_id, st.session_state.user_queries)
+            if len(st.session_state.chat_history) > 10:
+                st.session_state.chat_history = [st.session_state.chat_history[0]] + st.session_state.chat_history[-8:]
+
+            with st.spinner("AI is generating response..."):
+                result = agent.invoke({"messages": st.session_state.chat_history})
+                final_message = result["messages"][-1].content
+                
+                st.chat_message("assistant").markdown(final_message)
+                
+                audio_data = play_voice_male(final_message)
+                if audio_data:
+                    autoplay_audio(audio_data)
+                    st.audio(audio_data, format="audio/mp3")
+                
+                st.session_state.display_msgs.append({"role": "assistant", "content": final_message})
+                st.session_state.chat_history = list(result["messages"])
+                
+                auto_update_summary(st.session_state.session_id, st.session_state.user_queries)
 
 # --- TAB 2 & 3: Admin Tabs ---
 if is_admin:
