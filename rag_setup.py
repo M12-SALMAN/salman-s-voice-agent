@@ -531,11 +531,11 @@ with tab_chat:
                     result = agent.invoke({"messages": st.session_state.chat_history})
                     final_message = result["messages"][-1].content
                 
-                # Streaming (Typing) effect function
+                # Streaming (Typing) effect function with 0.15s delay
                 def stream_text_effect(text):
                     for word in text.split(" "):
                         yield word + " "
-                        time.sleep(0.05) # Typing speed control
+                        time.sleep(0.15) # Typing speed control (delay barha diya gaya hai)
                 
                 # Jawab ko screen par sath sath type karna
                 st.write_stream(stream_text_effect(final_message))
