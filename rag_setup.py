@@ -32,7 +32,9 @@ load_dotenv()
 # ==================================================================
 # CUSTOM LIVE MIC JAVASCRIPT COMPONENT (Real-time Typing)
 # ==================================================================
-COMPONENT_DIR = "./live_mic_component"
+# CRITICAL FIX: Absolute path use kiya hai taake Streamlit ko file mil jaye
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+COMPONENT_DIR = os.path.join(BASE_DIR, "live_mic_component")
 os.makedirs(COMPONENT_DIR, exist_ok=True)
 HTML_FILE = os.path.join(COMPONENT_DIR, "index.html")
 
@@ -136,7 +138,6 @@ html_code = """
 </html>
 """
 
-# CRITICAL FIX: File ko baar baar over-write hone se rokna taake app crash na ho
 if not os.path.exists(HTML_FILE):
     with open(HTML_FILE, "w", encoding="utf-8") as f:
         f.write(html_code)
@@ -208,7 +209,7 @@ LOG_DB_PATH = "./chat_logs.db"
 os.makedirs(DOCS_FOLDER, exist_ok=True)
 
 # ==================================================================
-# VOICE GENERATION FUNCTION (Cleaned for Stability)
+# VOICE GENERATION FUNCTION 
 # ==================================================================
 def play_voice_male(text):
     async def _generate():
@@ -434,17 +435,14 @@ with tab_chat:
         for msg in st.session_state.display_msgs:
             with st.chat_message(msg["role"]): st.markdown(msg["content"])
 
-        # NEW LIVE MIC COMPONENT INJECTED HERE
         spoken_data = live_mic_component(key=f"live_stt_{st.session_state.session_id}")
         
         written_text = st.chat_input("Type your message here...")
         
         question = None
         
-        # Priority to text input
         if written_text:
             question = written_text
-        # Or parse the JSON object returned from our custom Javascript mic
         elif spoken_data and isinstance(spoken_data, dict):
             current_time = spoken_data.get("time")
             if current_time != st.session_state.last_mic_time:
