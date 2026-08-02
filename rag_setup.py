@@ -5,7 +5,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 from pypdf import PdfReader
 from docx import Document as DocxDocument
-import streamlit as st 
+import streamlit as st
 import base64
 import asyncio
 import edge_tts
