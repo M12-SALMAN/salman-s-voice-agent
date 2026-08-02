@@ -6,10 +6,12 @@ from dotenv import load_dotenv
 from pypdf import PdfReader
 from docx import Document as DocxDocument
 import streamlit as st
-
-# --- Voice & Mic Libraries ---
-from gtts import gTTS
+import base64
+import asyncio
+import edge_tts
 import io
+
+# --- Mic Library ---
 from streamlit_mic_recorder import speech_to_text
 
 # Telemetry disable karne ke liye
@@ -31,73 +33,128 @@ load_dotenv()
 # ==================================================================
 # PAGE CONFIGURATION (Streamlit)
 # ==================================================================
-st.set_page_config(page_title="Customer Assistant Dashboard", layout="wide", page_icon="🎧")
+st.set_page_config(page_title="Customer Assistant Portal", layout="wide", page_icon="🎧")
 
 # ==================================================================
-# ADVANCED FRONTEND DESIGN (CSS)
+# ADVANCED "CALLING AGENT" FRONTEND DESIGN (CSS)
 # ==================================================================
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
     
     .stApp {
-        background-color: #f0f4f8;
+        background-color: #f4f7fb;
         font-family: 'Inter', sans-serif;
     }
     
-    /* Professional Dark Blue Buttons */
-    .stButton>button {
-        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%) !important;
-        color: white !important;
-        border-radius: 8px !important;
-        border: none !important;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        transition: all 0.3s ease;
-        font-weight: 500;
-        letter-spacing: 0.5px;
-    }
-    .stButton>button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 12px rgba(0,0,0,0.15);
-    }
-
-    /* Clean Chat Message Bubbles */
-    .stChatMessage {
-        background-color: white;
-        border-radius: 12px;
-        padding: 18px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.03);
-        margin-bottom: 15px;
+    /* ---------------- AGENT PROFILE HEADER ---------------- */
+    .agent-header {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 30px 10px 10px 10px;
+        margin-bottom: 20px;
+        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+        border-radius: 20px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.04);
         border: 1px solid #e2e8f0;
     }
     
-    /* Assistant vs User Marking */
+    .agent-avatar {
+        width: 130px;
+        height: 130px;
+        border-radius: 50%;
+        background-color: #e2e8f0;
+        border: 4px solid #1e3c72;
+        padding: 5px;
+        box-shadow: 0 10px 20px rgba(30, 60, 114, 0.15);
+        object-fit: cover;
+    }
+    
+    .agent-name {
+        font-size: 24px;
+        font-weight: 600;
+        color: #1e293b;
+        margin-top: 15px;
+        margin-bottom: 5px;
+    }
+    
+    /* Live Status Glowing Dot */
+    .status-container {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: #ecfdf5;
+        padding: 6px 15px;
+        border-radius: 20px;
+        border: 1px solid #a7f3d0;
+    }
+    
+    .pulse-dot {
+        width: 10px;
+        height: 10px;
+        background-color: #10b981;
+        border-radius: 50%;
+        box-shadow: 0 0 0 rgba(16, 185, 129, 0.4);
+        animation: pulse 1.5s infinite;
+    }
+    
+    .status-text {
+        font-size: 14px;
+        font-weight: 500;
+        color: #047857;
+    }
+    
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+
+    /* ---------------- CHAT INTERFACE ---------------- */
+    .stChatMessage {
+        background-color: white;
+        border-radius: 16px;
+        padding: 18px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        margin-bottom: 20px;
+        border: none !important;
+    }
+    
     div[data-testid="chat-message-assistant"] {
-        border-left: 4px solid #2a5298; /* Corporate Blue */
+        border-left: 5px solid #1e3c72 !important;
+        background: linear-gradient(to right, #ffffff, #f8fafc);
     }
+    
     div[data-testid="chat-message-user"] {
-        background-color: #f8fafc;
-        border-right: 4px solid #64748b;
+        border-right: 5px solid #64748b !important;
+        background-color: #ffffff;
     }
-    
-    /* Tabs Styling */
-    .stTabs [data-baseweb="tab-list"] { gap: 10px; padding-bottom: 10px; }
-    .stTabs [data-baseweb="tab"] {
-        height: 45px; background-color: transparent; border-radius: 6px;
-        padding: 10px 25px; font-weight: 600; color: #64748b;
+
+    /* ---------------- BUTTONS ---------------- */
+    .stButton>button {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%) !important;
+        color: white !important;
+        border-radius: 10px !important;
+        border: none !important;
+        box-shadow: 0 4px 15px rgba(30, 60, 114, 0.2);
+        transition: all 0.3s ease;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        height: 50px;
     }
-    .stTabs [aria-selected="true"] {
-        background: #1e3c72 !important;
-        color: white !important; border: none;
+    .stButton>button:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(30, 60, 114, 0.3);
     }
-    
-    /* Hide Default Elements */
+
+    /* Hide Default Headers */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
     </style>
 """, unsafe_allow_html=True)
-
 
 DATA_FOLDER = "./data"
 DOCS_FOLDER = "./documents"
@@ -108,18 +165,42 @@ LOG_DB_PATH = "./chat_logs.db"
 os.makedirs(DOCS_FOLDER, exist_ok=True)
 
 # ==================================================================
-# VOICE GENERATION FUNCTION
+# VOICE GENERATION FUNCTION (Male Voice - Asad Real Human Tone)
 # ==================================================================
-def play_voice(text):
+def play_voice_male(text):
+    async def _generate():
+        # 'ur-PK-AsadNeural' ek male Pakistani/Urdu voice hai jo bohat natural hai
+        communicate = edge_tts.Communicate(text, "ur-PK-AsadNeural")
+        audio_data = b""
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                audio_data += chunk["data"]
+        return audio_data
+        
     try:
-        # Roman Urdu/Hindi accent ke liye 'hi' select kiya gaya hai
-        tts = gTTS(text=text, lang='hi')
-        audio_bytes = io.BytesIO()
-        tts.write_to_fp(audio_bytes)
-        return audio_bytes.getvalue()
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        if loop.is_closed():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+        return loop.run_until_complete(_generate())
     except Exception as e:
         print(f"Voice generation error: {e}")
         return None
+
+def autoplay_audio(audio_bytes):
+    b64 = base64.b64encode(audio_bytes).decode()
+    md = f"""
+        <audio autoplay="true" class="stAudio">
+        <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
+        </audio>
+        """
+    st.markdown(md, unsafe_allow_html=True)
 
 # ==================================================================
 # LOGGING DATABASE SETUP (Auto-Save Logic)
@@ -273,9 +354,9 @@ def search_documents(query: str) -> str:
 tools = [search_item_fuzzy, run_sql_query, search_documents]
 
 # ==================================================================
-# 5. PROMPT + AGENT
+# 5. PROMPT + AGENT (Human-like Conversational Tone)
 # ==================================================================
-system_prompt = f"""Tum ek professional 'Customer Assistant' ho. Tumhara koi personal naam nahi hai.
+system_prompt = f"""Tum ek professional Customer Assistant ho. Tumhara koi personal naam nahi hai. Tumhara kaam call center agent ki tarha customers ko guide karna hai.
 
 Database mein yeh tables maujood hain:
 {SCHEMA_TEXT}
@@ -284,11 +365,12 @@ Rule 0: HAMESHA pehle tool call karo.
 Rule 1: Kisi specific product, part, ya accessory ki detail/price mangi jaye to HAMESHA 'search_item_fuzzy' tool use karo.
 Rule 2: Complex analysis (Counting, Totals) ke liye 'run_sql_query' use karo.
 Rule 3: Policy, agreement ya document se related sawal ho to 'search_documents' use karo.
-Rule 4: Agar sab tools fail ho jayen, to bolo "Maaf kijiye, ye maloomat abhi mere paas nahi hai, baraye meharbani helpline par rabta karein".
-Rule 5: Jawab Roman Urdu mein do. Friendly aur short rakho. Price ho to Rs likho.
-Rule 6: Pichli baatcheet yaad rakho.
-Rule 7: Akhir mein poocho "Kya main aapki mazeed koi rehnumai kar sakta hoon?"
-Rule 8: STRICT RESTRICTION: Apni general knowledge se jawab bilkul nahi dena. Data na mile to mazzrat kar lo.
+Rule 4: Agar sab tools fail ho jayen, to bolo "Maaf kijiye ga, ye maloomat abhi mere paas nahi hai, baraye meharbani helpline par rabta kar lein".
+Rule 5: SAB SE ZAROORI: Tumhari baat cheet bilkul ek aam insaan (human) ki tarha honi chahiye. AI ya robot ki tarha lamba aur mushkil jawab nahi dena. Chotay, friendly, aur conversational sentences use karo (jaise "Ji bilkul", "Han ji", "Zaroor", "Dekhein").
+Rule 6: Jawab Roman Urdu mein do. Price ho to Rs likho.
+Rule 7: Pichli baatcheet yaad rakho.
+Rule 8: Akhir mein poocho "Kya main aapki mazeed koi help kar sakta hoon?"
+Rule 9: STRICT RESTRICTION: Apni general knowledge se jawab bilkul nahi dena. Data na mile to mazzrat kar lo.
 """
 
 @st.cache_resource
@@ -319,17 +401,26 @@ with st.sidebar:
 
 is_admin = (user_pass == admin_password and admin_password != "")
 
-st.title("🎧 Customer Support Portal")
-
 if is_admin:
     st.success("🟢 Admin Logged In! Dashboard and Logs Unlocked.")
-    tab_chat, tab_db, tab_logs = st.tabs(["💬 Live Chat", "📊 Database", "📝 Session Logs"])
+    tab_chat, tab_db, tab_logs = st.tabs(["💬 Voice Assistant", "📊 Database", "📝 Session Logs"])
 else:
     tab_chat = st.container()
 
 # --- TAB 1: Chat Interface ---
 with tab_chat:
-    st.subheader("💬 Assistant Chat")
+    
+    # Custom Calling Profile Header (Male 3D Avatar)
+    st.markdown("""
+        <div class="agent-header">
+            <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/People/Man%20Office%20Worker.png" class="agent-avatar" alt="Agent">
+            <div class="agent-name">Customer Assistant</div>
+            <div class="status-container">
+                <div class="pulse-dot"></div>
+                <div class="status-text">Online & Ready to Help</div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
     for msg in st.session_state.display_msgs:
         with st.chat_message(msg["role"]):
@@ -338,8 +429,8 @@ with tab_chat:
     # --- 🎙️ Naya Mic Button Hissa ---
     spoken_text = speech_to_text(
         language='ur-PK', 
-        start_prompt="🎙️ Bol kar poochein",
-        stop_prompt="🔴 Sun raha hai...",
+        start_prompt="🎙️ Tap to Speak (Bolein)",
+        stop_prompt="🔴 Listening (Sun raha hoon)...",
         just_once=True,
         key='STT'
     )
@@ -359,17 +450,18 @@ with tab_chat:
         if len(st.session_state.chat_history) > 10:
             st.session_state.chat_history = [st.session_state.chat_history[0]] + st.session_state.chat_history[-8:]
 
-        with st.spinner("Assistant check kar raha hai..."):
+        with st.spinner("Assistant data check kar raha hai..."):
             result = agent.invoke({"messages": st.session_state.chat_history})
             final_message = result["messages"][-1].content
             
             # 1. Text message UI mein show karein
             st.chat_message("assistant").markdown(final_message)
             
-            # 2. Voice generate aur play karein
-            audio_data = play_voice(final_message)
+            # 2. Male Voice generate aur play karein
+            audio_data = play_voice_male(final_message)
             if audio_data:
-                st.audio(audio_data, format="audio/mp3", autoplay=True)
+                autoplay_audio(audio_data)
+                st.audio(audio_data, format="audio/mp3")
             
             # 3. History update karein
             st.session_state.display_msgs.append({"role": "assistant", "content": final_message})
