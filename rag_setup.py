@@ -497,7 +497,22 @@ with tab_chat:
 
         written_text = st.chat_input("Type your message here...")
         
-        question = written_text or spoken_text
+        # --- NEW LOGIC: Convert Urdu script to Roman Urdu automatically ---
+        question = None
+        if written_text:
+            question = written_text
+        elif spoken_text:
+            with st.spinner("Converting voice to Roman Urdu..."):
+                try:
+                    # Groq LLM ka istemal karte hue Urdu ko Roman Urdu mein convert karna
+                    transliteration_prompt = [
+                        SystemMessage(content="You are an expert transliterator. Convert the following Urdu script text into natural Roman Urdu. Output ONLY the converted Roman Urdu text, with no quotation marks or extra explanations."),
+                        HumanMessage(content=spoken_text)
+                    ]
+                    question = llm.invoke(transliteration_prompt).content.strip()
+                except Exception as e:
+                    # Agar kisi wajah se LLM fail ho jaye, to default text use hoga
+                    question = spoken_text
 
         if question:
             st.chat_message("user").markdown(question)
