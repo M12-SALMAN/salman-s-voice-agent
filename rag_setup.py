@@ -75,11 +75,12 @@ html_code = """
     Streamlit.setComponentReady();
     Streamlit.setFrameHeight(60);
 
-    if ('webkitSpeechRecognition' in window) {
-        const recognition = new webkitSpeechRecognition();
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
         recognition.continuous = true;
         recognition.interimResults = true;
-        recognition.lang = 'ur-PK'; // Urdu language mapping
+        recognition.lang = 'ur-PK'; // Urdu language
         
         let isRecording = false;
         
@@ -118,7 +119,6 @@ html_code = """
             btn.style.background = '#0f172a';
             isRecording = false;
             if(finalTranscript.trim() !== "") {
-                // Return value and unique timestamp to Python
                 Streamlit.setComponentValue({
                     text: finalTranscript.trim(),
                     time: Date.now()
@@ -135,8 +135,11 @@ html_code = """
 </body>
 </html>
 """
-with open(HTML_FILE, "w", encoding="utf-8") as f:
-    f.write(html_code)
+
+# CRITICAL FIX: File ko baar baar over-write hone se rokna taake app crash na ho
+if not os.path.exists(HTML_FILE):
+    with open(HTML_FILE, "w", encoding="utf-8") as f:
+        f.write(html_code)
 
 live_mic_component = components.declare_component("live_mic", path=COMPONENT_DIR)
 
@@ -201,12 +204,11 @@ st.markdown("""
 DATA_FOLDER = "./data"
 DOCS_FOLDER = "./documents"
 DB_PATH = "./inventory_system.db"
-PERSIST_FOLDER = "./vectorstore"
 LOG_DB_PATH = "./chat_logs.db"
 os.makedirs(DOCS_FOLDER, exist_ok=True)
 
 # ==================================================================
-# VOICE GENERATION FUNCTION (Clear & Professional Tone)
+# VOICE GENERATION FUNCTION (Cleaned for Stability)
 # ==================================================================
 def play_voice_male(text):
     async def _generate():
@@ -218,17 +220,11 @@ def play_voice_male(text):
         return audio_data
         
     try:
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-        
-        if loop.is_closed():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
-        return loop.run_until_complete(_generate())
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(_generate())
+        loop.close()
+        return result
     except Exception as e:
         print(f"Voice generation error: {e}")
         return None
